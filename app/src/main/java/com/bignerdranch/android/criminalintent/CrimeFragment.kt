@@ -13,18 +13,22 @@ import android.widget.DatePicker
 import android.widget.EditText
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProviders
+import java.text.SimpleDateFormat
 import java.util.*
 
 private const val ARG_CRIME_ID = "crime_id"
 private const val TAG = "CrimeFragment"
 private const val DIALOG_DATE = "DialogDate"
 private const val REQUEST_DATE = 0
+private const val dateFormatString = "E MMMM dd, yyyy"
+private const val timeFormatString = "HH:mm:ss z"
 
-class CrimeFragment : Fragment(), DatePickerFragment.Callbacks {
+class CrimeFragment : Fragment(), DatePickerFragment.Callbacks, TimePickerFragment.Callbacks {
 
     private lateinit var crime: Crime
     private lateinit var titleField: EditText
     private lateinit var dateButton: Button
+    private lateinit var timeButton: Button
     private lateinit var solvedCheckBox: CheckBox
 
     private val crimeDetailViewModel: CrimeDetailViewModel by lazy {
@@ -47,6 +51,7 @@ class CrimeFragment : Fragment(), DatePickerFragment.Callbacks {
 
         titleField = view.findViewById(R.id.crime_title) as EditText
         dateButton = view.findViewById(R.id.crime_date) as Button
+        timeButton = view.findViewById(R.id.crime_time) as Button
         solvedCheckBox = view.findViewById(R.id.crime_solved) as CheckBox
 
         return view
@@ -107,6 +112,13 @@ class CrimeFragment : Fragment(), DatePickerFragment.Callbacks {
                 show(this@CrimeFragment.requireFragmentManager(), DIALOG_DATE)
             }
         }
+
+        timeButton.setOnClickListener {
+            TimePickerFragment.newInstance(crime.date).apply {
+                setTargetFragment(this@CrimeFragment, REQUEST_DATE)
+                show(this@CrimeFragment.requireFragmentManager(), DIALOG_DATE)
+            }
+        }
     }
 
     override fun onStop() {
@@ -115,13 +127,26 @@ class CrimeFragment : Fragment(), DatePickerFragment.Callbacks {
     }
 
     override fun onDateSelected(date: Date) {
+        val hour = crime.date.hours
+        val min = crime.date.minutes
         crime.date = date
+        crime.date.hours = hour
+        crime.date.minutes = min
+        updateUI()
+    }
+
+    override fun onTimeSelected(hour: Int, minute: Int) {
+        crime.date.hours = hour
+        crime.date.minutes = minute
         updateUI()
     }
 
     private fun updateUI() {
         titleField.setText(crime.title)
-        dateButton.text = crime.date.toString()
+        val dateFormatter = SimpleDateFormat(dateFormatString)
+        val timeFormatter = SimpleDateFormat(timeFormatString)
+        dateButton.text = dateFormatter.format(crime.date)
+        timeButton.text = timeFormatter.format(crime.date)
         solvedCheckBox.apply {
             isChecked = crime.isSolved
             jumpDrawablesToCurrentState()
