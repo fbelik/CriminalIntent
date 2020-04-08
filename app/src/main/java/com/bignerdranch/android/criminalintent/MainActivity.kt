@@ -2,13 +2,19 @@ package com.bignerdranch.android.criminalintent
 
 import android.os.Bundle
 import android.util.Log
+import android.widget.Button
+import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.fragment.app.Fragment
 import java.util.*
+
+private const val CRIME_LIST_FRAGMENT_TAG = "crime_list_fragment"
 
 class MainActivity : AppCompatActivity(), CrimeListFragment.Callbacks {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
         setContentView(R.layout.activity_main)
 
         val currentFragment =
@@ -18,7 +24,7 @@ class MainActivity : AppCompatActivity(), CrimeListFragment.Callbacks {
             val fragment = CrimeListFragment.newInstance()
             supportFragmentManager
                 .beginTransaction()
-                .add(R.id.fragment_container, fragment)
+                .add(R.id.fragment_container, fragment, CRIME_LIST_FRAGMENT_TAG)
                 .commit()
         }
     }

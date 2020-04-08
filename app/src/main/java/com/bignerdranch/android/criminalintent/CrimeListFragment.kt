@@ -1,9 +1,12 @@
 package com.bignerdranch.android.criminalintent
 
+import android.app.Activity
 import android.content.Context
+import android.opengl.Visibility
 import android.os.Bundle
 import android.util.Log
 import android.view.*
+import android.widget.Button
 import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
@@ -14,12 +17,13 @@ import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
+import kotlinx.android.synthetic.main.fragment_crime_list.*
 import java.util.*
 
 private const val TAG = "CrimeListFragment"
+private const val NEW_CRIME = "CreateNewCrime"
 
 class CrimeListFragment : Fragment() {
-
     /**
      * Required interface for hosting activities
      */
@@ -31,6 +35,8 @@ class CrimeListFragment : Fragment() {
 
     private lateinit var crimeRecyclerView: RecyclerView
     private var adapter: CrimeAdapter? = CrimeAdapter(emptyList())
+
+    private lateinit var noCrimesText: TextView
 
     private val crimeListViewModel: CrimeListViewModel by lazy {
         ViewModelProviders.of(this).get(CrimeListViewModel::class.java)
@@ -57,6 +63,8 @@ class CrimeListFragment : Fragment() {
             view.findViewById(R.id.crime_recycler_view) as RecyclerView
         crimeRecyclerView.layoutManager = LinearLayoutManager(context)
         crimeRecyclerView.adapter = adapter
+
+        noCrimesText = view.findViewById(R.id.no_crimes_text) as TextView
 
         return view
     }
@@ -97,6 +105,12 @@ class CrimeListFragment : Fragment() {
     }
 
     private fun updateUI(crimes: List<Crime>) {
+        if (crimes.isEmpty()) {
+            noCrimesText.visibility = View.VISIBLE
+        }
+        else {
+            noCrimesText.visibility = View.GONE
+        }
         adapter?.submitList(crimes)
     }
 
@@ -142,7 +156,6 @@ class CrimeListFragment : Fragment() {
             holder.bind(crime)
         }
 
-        // override fun getItemCount() = crimes.size
     }
 
     companion object {

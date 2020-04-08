@@ -34,7 +34,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:padding="30dp"
-        android:text="11:56 EST" />
+        tools:text="11:56 EST" />
 
     <CheckBox
             android:id="@+id/crime_solved"

@@ -5,4 +5,7 @@
     <string name="crime_details_label">Details</string>
     <string name="crime_solved_label">Solved</string>
     <string name="new_crime">New Crime</string>
+    <string name="no_crimes">No crimes yet to display</string>
+    <string name="no_crimes_yet_to_display">No crimes yet to display</string>
+    <string name="create_new_crime">Create new crime</string>
 </resources>
