@@ -1,5 +1,6 @@
 package com.bignerdranch.android.criminalintent
 
+import android.Manifest
 import android.app.Activity
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -10,14 +11,16 @@ import android.os.Bundle
 import android.provider.ContactsContract
 import android.text.Editable
 import android.text.TextWatcher
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
 import android.widget.CheckBox
-import android.widget.DatePicker
 import android.widget.EditText
 import androidx.annotation.RequiresApi
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProviders
 import java.text.SimpleDateFormat
@@ -31,6 +34,7 @@ private const val REQUEST_CONTACT = 1
 private const val DATE_FORMAT = "EEE, MMM, dd"
 private const val dateFormatString = "E MMMM dd, yyyy"
 private const val timeFormatString = "HH:mm:ss z"
+private const val MY_PERMISSIONS_READ_REQUEST_CONTACTS = 100
 
 class CrimeFragment : Fragment(), DatePickerFragment.Callbacks, TimePickerFragment.Callbacks {
 
@@ -41,6 +45,9 @@ class CrimeFragment : Fragment(), DatePickerFragment.Callbacks, TimePickerFragme
     private lateinit var solvedCheckBox: CheckBox
     private lateinit var reportButton: Button
     private lateinit var suspectButton: Button
+    private lateinit var callSuspectButton: Button
+
+    private var canAccessPhone = false
 
     private val crimeDetailViewModel: CrimeDetailViewModel by lazy {
         ViewModelProviders.of(this).get(CrimeDetailViewModel::class.java)
@@ -66,6 +73,7 @@ class CrimeFragment : Fragment(), DatePickerFragment.Callbacks, TimePickerFragme
         solvedCheckBox = view.findViewById(R.id.crime_solved) as CheckBox
         reportButton = view.findViewById(R.id.send_crime_report) as Button
         suspectButton = view.findViewById(R.id.choose_suspect) as Button
+        callSuspectButton = view.findViewById(R.id.call_suspect) as Button
 
         return view
     }
@@ -81,6 +89,12 @@ class CrimeFragment : Fragment(), DatePickerFragment.Callbacks, TimePickerFragme
                 }
             }
         )
+        if (ContextCompat.checkSelfPermission(activity!!.applicationContext, Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) {
+            ActivityCompat.requestPermissions(activity!!, arrayOf(Manifest.permission.READ_CONTACTS), MY_PERMISSIONS_READ_REQUEST_CONTACTS)
+        }
+        else {
+            canAccessPhone = true
+        }
     }
 
     override fun onStart() {
@@ -159,6 +173,16 @@ class CrimeFragment : Fragment(), DatePickerFragment.Callbacks, TimePickerFragme
                 isEnabled = false
             }
         }
+
+        callSuspectButton.setOnClickListener {
+            Log.d("Making Call", "Calling number ${crime.phoneNumber}")
+            val callIntent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:${crime.phoneNumber}"))
+            startActivity(callIntent)
+        }
+
+        if (!canAccessPhone) {
+            callSuspectButton.isEnabled = false
+        }
     }
 
     override fun onStop() {
@@ -194,6 +218,7 @@ class CrimeFragment : Fragment(), DatePickerFragment.Callbacks, TimePickerFragme
         if (crime.suspect.isNotEmpty()) {
             suspectButton.text = crime.suspect
         }
+        callSuspectButton.isEnabled = crime.phoneNumber.isNotEmpty()
     }
 
     @RequiresApi(Build.VERSION_CODES.O)
@@ -204,25 +229,63 @@ class CrimeFragment : Fragment(), DatePickerFragment.Callbacks, TimePickerFragme
             requestCode == REQUEST_CONTACT && data != null -> {
                 val contactUri: Uri? = data.data
                 // Specify which fields you want your query to return values for
-                val queryFields = arrayOf(ContactsContract.Contacts.DISPLAY_NAME)
+                val queryFields = arrayOf(ContactsContract.Contacts.DISPLAY_NAME, ContactsContract.Contacts._ID, ContactsContract.Contacts.HAS_PHONE_NUMBER)
                 // Perform your query - the contactUri is like a "where" clause here
-                val cursor = requireActivity().contentResolver
+                val contentResolver = requireActivity().contentResolver
+                val cursor = contentResolver
                     .query(contactUri, queryFields, null, null)
                 cursor?.use {
-                    // Verify cursor contains at least one result
+                    Log.d("CrimeFragment Cursor", "Cursor read in ${it.count} items.")
                     if (it.count == 0) {
                         return
                     }
-                    // Pull out the first column of the first row of data
-                    // that is the suspect's name
-                    it.moveToFirst()
-                    val suspect = it.getString(0)
-                    crime.suspect = suspect
-                    crimeDetailViewModel.saveCrime(crime)
-                    suspectButton.text = suspect
+                    else {
+                        // Pull out the first column of the first row of data
+                        // that is the suspect's name
+                        it.moveToFirst()
+                        val suspect = it.getString(cursor.getColumnIndex(ContactsContract.Contacts.DISPLAY_NAME))
+                        val id = it.getString(cursor.getColumnIndex(ContactsContract.Contacts._ID))
+                        val hasPhone = it.getString(cursor.getColumnIndex(ContactsContract.Contacts.HAS_PHONE_NUMBER)).toInt()
+                        Log.d("CrimeFragment Cursor", "Suspect name = $suspect, id = $id, has a phone number is $hasPhone, and can access phone is $canAccessPhone")
+                        if (hasPhone > 0 && canAccessPhone) {
+                            val phones = contentResolver.query(
+                                ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
+                                null,
+                                ContactsContract.CommonDataKinds.Phone.CONTACT_ID + " = " + id,
+                                null,
+                                null
+                            )
+                            phones?.use { it ->
+                                it.moveToFirst()
+                                val phoneNumber =
+                                    it.getString(it.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER))
+                                crime.phoneNumber = phoneNumber
+                            }
+                        }
+                        else {
+                            crime.phoneNumber = ""
+                        }
+                        crime.suspect = suspect
+                        crimeDetailViewModel.saveCrime(crime)
+                        suspectButton.text = suspect
+                    }
                 }
+            }
+        }
+    }
 
-
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        when (requestCode) {
+            MY_PERMISSIONS_READ_REQUEST_CONTACTS -> {
+                // If request is cancelled, the result arrays are empty.
+                if ((grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED)) {
+                    canAccessPhone = true
+                }
+                return
             }
         }
     }
