@@ -2,6 +2,7 @@ package com.bignerdranch.android.criminalintent
 
 import android.Manifest
 import android.app.Activity
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.pm.ResolveInfo
@@ -55,6 +56,15 @@ class CrimeFragment : Fragment(), DatePickerFragment.Callbacks, TimePickerFragme
     private lateinit var photoButton: ImageButton
     private lateinit var photoView: ImageView
 
+    /**
+     * Required interface for hosting activities
+     */
+    interface Callbacks {
+        fun onPhotoSelected(photoFile: File)
+    }
+
+    private var callbacks: Callbacks? = null
+
     private var canAccessPhone = false
 
     private val crimeDetailViewModel: CrimeDetailViewModel by lazy {
@@ -66,6 +76,11 @@ class CrimeFragment : Fragment(), DatePickerFragment.Callbacks, TimePickerFragme
         crime = Crime()
         val crimeId: UUID = arguments?.getSerializable(ARG_CRIME_ID) as UUID
         crimeDetailViewModel.loadCrime(crimeId)
+    }
+
+    override fun onAttach(context: Context) {
+        super.onAttach(context)
+        callbacks = context as Callbacks
     }
 
     override fun onCreateView(
@@ -222,6 +237,12 @@ class CrimeFragment : Fragment(), DatePickerFragment.Callbacks, TimePickerFragme
                 }
 
                 startActivityForResult(captureImage, REQUEST_PHOTO)
+            }
+        }
+
+        photoView.setOnClickListener {
+            if (photoFile.exists()) {
+                callbacks?.onPhotoSelected(photoFile)
             }
         }
     }
